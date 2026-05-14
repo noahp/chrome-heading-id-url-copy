@@ -17,15 +17,18 @@ chrome.runtime.onMessage.addListener((msg) => {
     return;
   }
 
-  // Walk up the DOM to find the nearest ancestor-or-self with an id
+  // Walk up the DOM to find the nearest ancestor-or-self with an id.
+  // At each level also check previousElementSibling, since some sites place
+  // an empty <span id="..."> before the heading rather than on it.
   let node = el;
   while (node && node !== document.documentElement) {
     if (node.id) {
-      const base = msg.pageUrl.split("#")[0];
-      const url = `${base}#${encodeURIComponent(node.id)}`;
-      navigator.clipboard.writeText(url).then(() => {
-        showToast(`Copied: #${node.id}`);
-      });
+      copyUrl(msg.pageUrl, node.id);
+      return;
+    }
+    const prev = node.previousElementSibling;
+    if (prev && prev.id) {
+      copyUrl(msg.pageUrl, prev.id);
       return;
     }
     node = node.parentElement;
@@ -33,6 +36,11 @@ chrome.runtime.onMessage.addListener((msg) => {
 
   showToast("No id found on this element or its ancestors");
 });
+
+function copyUrl(pageUrl, id) {
+  const url = `${pageUrl.split("#")[0]}#${encodeURIComponent(id)}`;
+  navigator.clipboard.writeText(url).then(() => showToast(`Copied: #${id}`));
+}
 
 function showToast(message) {
   const existing = document.getElementById("__copy-section-link-toast");
